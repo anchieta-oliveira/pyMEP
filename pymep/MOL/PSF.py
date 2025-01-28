@@ -50,22 +50,22 @@ This project is licensed under Creative Commons license (CC-BY-4.0) (Ver qual)
 # Classes
 ###############################################################################
 class PSF:
-	""" Class to store and manipulate data from PDB files.
+	""" Class to store and manipulate data from PSF files.
 
 	Attributes
 	----------
 	text : str
-		PDB file content.
+		PSF file content.
 
 	"""
 
 	def __init__(self, path: str = "") -> None:
-		''' Constructor for PDB class.
+		''' Constructor for PSF class.
 		
 		Parameters
 		----------
 		path : str, optional
-			Path to the PDB file. Default is an empty string. If path is not provided the PDB object is created empty.
+			Path to the PSF file. Default is an empty string. If path is not provided the PSF object is created empty.
 		'''
 
 		self.text:str = ""
