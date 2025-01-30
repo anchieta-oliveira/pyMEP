@@ -2,15 +2,12 @@ import os
 import numba
 import numpy as np
 from tqdm import tqdm
-from pymep.FF.forceField import ForceField
-from pymep.VOL.cube import Cube
 from pymep.VOL.dx import DX
-#from pymep.FF.forceField import ForceField
-from pymep.MOL.PDB import PDB
 from pymep.QM.aux import AUX
+from pymep.MOL.PDB import PDB
+from pymep.VOL.cube import Cube
 from pymep.QM.orca_out import OrcaOut
-from concurrent.futures import ThreadPoolExecutor
-
+from pymep.FF.forceField import ForceField
 
 class MEP:
     def __init__(self) -> None:
@@ -74,8 +71,12 @@ class MEP:
             fun = self.comput_mep_gpu
         else:
             fun = self.comput_mep
+        
+        mask = zatoms != 0  
+        coords_atoms = coords_atoms[mask]
+        zatoms = zatoms[mask]
 
-        gmep = fun(catoms=coords_atoms, zatoms=zatoms, x=x, y=y, z=z, xn=d.xn, yn=d.yn, zn=d.zn, cutoff=cutoff)
+        gmep = fun(catoms=coords_atoms, zatoms=zatoms, x=x, y=y, z=z, xn=d.xn, yn=d.yn, zn=d.zn)
 
         if gpu:
             gmep = cp.asnumpy(gmep)
@@ -100,110 +101,26 @@ class MEP:
 
     @staticmethod
     @numba.njit(parallel=True, cache=True, fastmath=True)
-    def comput_mep(catoms: np.array, zatoms: np.array, x: np.array, y: np.array, z: np.array, xn: int, yn: int, zn: int, cutoff: float = 15) -> np.array:
+    def comput_mep(catoms: np.array, zatoms: np.array, x: np.array, y: np.array, z: np.array, xn: int, yn: int, zn: int) -> np.array:
         grid = np.stack((x, y, z), axis=-1)
         gmep = np.zeros((xn, yn, zn),  dtype=np.float32)
         
         for i in numba.prange(catoms.shape[0]):
             r = np.sqrt(np.sum((grid - catoms[i]) ** 2, axis=-1))
-            valid_mask = (r < cutoff) & (r > 0)
-            contribution = np.zeros_like(r)
-            contribution[valid_mask] = zatoms[i] / r[valid_mask]
+            r[r == 0] = np.inf
+            contribution = zatoms[i] / r
             gmep += contribution.reshape((xn, yn, zn))
         return gmep
 
     @staticmethod    
-    def comput_mep_gpu(catoms, zatoms, x, y, z, xn:int, yn:int, zn:int, cutoff:float=15):
+    def comput_mep_gpu(catoms, zatoms, x, y, z, xn:int, yn:int, zn:int):
         import cupy as cp
         grid = cp.stack((x, y, z), axis=-1) 
-        gmep = cp.zeros((xn, yn, zn))  
+        gmep = cp.zeros((xn, yn, zn), dtype=cp.float32)  
+
         for i in tqdm(range(catoms.shape[0]), desc="Processando átomos", unit="átomo"):
-            r = cp.sqrt(cp.sum((grid - catoms[i]) ** 2, axis=-1)) 
-            r[r == 0] = cp.inf 
-            valid_mask = (r < cutoff) & (r > 0)
-            contribution = cp.zeros_like(r) 
-            contribution[valid_mask] = zatoms[i] / r[valid_mask]
-            gmep += contribution.reshape((xn, yn, zn))
-        return gmep
-    
-
-    @staticmethod
-    def comput_mep_gpu_b(catoms, zatoms, x, y, z, xn: int, yn: int, zn: int, cutoff: float = 15):
-        import cupy as cp
-
-        grid = cp.stack((x, y, z), axis=-1).reshape(-1, 3)
-
-        catoms_exp = catoms[:, cp.newaxis, :] 
-        grid_exp = grid[cp.newaxis, :, :]   
-
-        r = cp.sqrt(cp.sum((grid_exp - catoms_exp) ** 2, axis=-1))  
-
-        valid_mask = (r < cutoff) & (r > 0)
-
-
-        r[r == 0] = cp.inf
-
-        contributions = cp.zeros_like(r)
-        contributions[valid_mask] = zatoms[:, cp.newaxis] / r[valid_mask] 
-
-        gmep = cp.sum(contributions, axis=0)  
-
-
-        return gmep.reshape((xn, yn, zn))
-
-
-    @staticmethod
-    def comput_mep_gpu_c(catoms, zatoms, x, y, z, xn: int, yn: int, zn: int, cutoff: float = 15, chunk_size: int = 500):
-        import cupy as cp
-
-        grid = cp.stack((x, y, z), axis=-1).reshape(-1, 3)
-        n_grid_points = grid.shape[0]
-
-        gmep = cp.zeros(n_grid_points, dtype=cp.float32)
-
-        for start in tqdm(range(0, n_grid_points, chunk_size),desc="Processando átomos", unit="átomo"):
-            end = min(start + chunk_size, n_grid_points)
-            grid_chunk = grid[start:end]  
-
-            grid_exp = grid_chunk[cp.newaxis, :, :] 
-            catoms_exp = catoms[:, cp.newaxis, :]  
-
-            r = cp.sqrt(cp.sum((grid_exp - catoms_exp) ** 2, axis=-1))  
-
-            valid_mask = (r < cutoff) & (r > 0)
-
-            r[r == 0] = cp.inf
-
-            contributions = cp.zeros_like(r)
-            contributions[valid_mask] = zatoms[:, cp.newaxis] / r[valid_mask]
-
-            gmep[start:end] = cp.sum(contributions, axis=0)
-
-        return gmep.reshape((xn, yn, zn))
-
-    @staticmethod    
-    def comput_mep_gpu_d(catoms, zatoms, x, y, z, xn:int, yn:int, zn:int, cutoff:float=15):
-        import cupy as cp
-        grid = cp.stack((x, y, z), axis=-1) 
-        gmep = cp.zeros((xn, yn, zn))  
-
-        # Função para processar cada átomo de maneira paralela
-        def process_atom(i):
             r = cp.sqrt(cp.sum((grid - catoms[i]) ** 2, axis=-1))
-            r[r == 0] = cp.inf 
-            valid_mask = (r < cutoff) & (r > 0)
-            contribution = cp.zeros_like(r)
-            contribution[valid_mask] = zatoms[i] / r[valid_mask]
-            return contribution.reshape((xn, yn, zn))
-
-        # Usando ThreadPoolExecutor para paralelizar o loop
-        with ThreadPoolExecutor() as executor:
-            # Submete a tarefa de cada átomo em paralelo
-            futures = [executor.submit(process_atom, i) for i in range(catoms.shape[0])]
-            
-            # Usando tqdm para a barra de progresso
-            for future in tqdm(futures, desc="Processando átomos", unit="átomo"):
-                contribution = future.result()  # Obtém o resultado de cada átomo processado
-                gmep += contribution  # Adiciona a contribuição à grid final
-
+            r = cp.where(r == 0, cp.inf, r)
+            contribution = zatoms[i]/r
+            gmep += contribution.reshape((xn, yn, zn))
         return gmep
