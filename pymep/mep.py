@@ -14,7 +14,7 @@ class MEP:
         pass
 
     
-    def calculate(self, pdb:PDB, aux:AUX=AUX(), orca_out:OrcaOut=OrcaOut(), res:float=0.5, gpu:bool=False, charges:np.array=np.array([]), FF:str="", form:str="cube", margim:float=0.3, cutoff: float = 15):
+    def calculate(self, pdb:PDB, aux:AUX=AUX(), orca_out:OrcaOut=OrcaOut(), res:float=0.5, gpu:bool=False, charges:np.array=np.array([]), FF:str="", form:str="cube", margim:float=0.3, cutoff: float = 15, gpus_id:list=[]):
         if gpu:
             import cupy as cp
             
@@ -68,7 +68,7 @@ class MEP:
             zatoms = cp.asarray(zatoms, dtype=cp.float32)
 
         if gpu:
-            fun = self.comput_mep_gpu
+            fun = self.comput_mep_multi_gpu
         else:
             fun = self.comput_mep
         
@@ -76,7 +76,7 @@ class MEP:
         coords_atoms = coords_atoms[mask]
         zatoms = zatoms[mask]
 
-        gmep = fun(catoms=coords_atoms, zatoms=zatoms, x=x, y=y, z=z, xn=d.xn, yn=d.yn, zn=d.zn, cutoff=cutoff)
+        gmep = fun(catoms=coords_atoms, zatoms=zatoms, x=x, y=y, z=z, xn=d.xn, yn=d.yn, zn=d.zn, cutoff=cutoff, gpus_id=gpus_id)
 
         if gpu:
             gmep = cp.asnumpy(gmep)
@@ -101,7 +101,7 @@ class MEP:
 
     @staticmethod
     @numba.njit(parallel=True, cache=True, fastmath=True)
-    def comput_mep(catoms: np.array, zatoms: np.array, x: np.array, y: np.array, z: np.array, xn: int, yn: int, zn: int,  cutoff=20) -> np.array:
+    def comput_mep(catoms: np.array, zatoms: np.array, x: np.array, y: np.array, z: np.array, xn: int, yn: int, zn: int,  cutoff=20, gpus_id:list=[]) -> np.array:
         grid = np.stack((x, y, z), axis=-1)
         gmep = np.zeros((xn, yn, zn),  dtype=np.float32)
         
@@ -114,15 +114,61 @@ class MEP:
         return gmep
 
     @staticmethod    
-    def comput_mep_gpu(catoms, zatoms, x, y, z, xn:int, yn:int, zn:int, cutoff=20):
+    def comput_mep_gpu(catoms, zatoms, x, y, z, xn:int, yn:int, zn:int, cutoff=20, gpus_id:list=[]):
         import cupy as cp
         grid = cp.stack((x, y, z), axis=-1) 
         gmep = cp.zeros((xn, yn, zn), dtype=cp.float32)  
 
-        for i in tqdm(range(catoms.shape[0]), desc="Processando", unit="at "):
+        for i in tqdm(range(catoms.shape[0]), desc="Processando", unit=" atoms"):
             r = cp.sqrt(cp.sum((grid - catoms[i]) ** 2, axis=-1))
             valid_mask = (r < cutoff) & (r > 0)
             contribution = cp.zeros_like(r)
             contribution[valid_mask] = zatoms[i] / r[valid_mask]
             gmep += contribution.reshape((xn, yn, zn))
+        return gmep
+
+    @staticmethod
+    def comput_mep_multi_gpu(catoms, zatoms, x, y, z, xn:int, yn:int, zn:int, cutoff=20, gpus_id:list=[]):
+        import cupy as cp
+        n_gpus = len(gpus_id)
+
+        if n_gpus < 0:
+            n_gpus = cp.cuda.runtime.getDeviceCount()
+            gpus_id = list(range(n_gpus))
+        
+        grid = cp.stack((x, y, z), axis=-1)
+        gmep = cp.zeros((xn, yn, zn), dtype=cp.float32)
+
+        batch_size = catoms.shape[0] // n_gpus 
+
+        def process_gpu(gpu_id, start_idx, end_idx, progress_bar):
+            cp.cuda.Device(gpu_id).use()
+            local_gmep = cp.zeros((xn, yn, zn), dtype=cp.float32)
+
+            for i in range(start_idx, end_idx):
+                r = cp.sqrt(cp.sum((grid - catoms[i]) ** 2, axis=-1))
+                valid_mask = (r < cutoff) & (r > 0)
+                contribution = cp.zeros_like(r)
+                contribution[valid_mask] = zatoms[i] / r[valid_mask]
+                local_gmep += contribution.reshape((xn, yn, zn))
+                
+                progress_bar.update(1)
+            
+            return local_gmep
+
+        with tqdm(total=catoms.shape[0], desc="Processing MEP...", unit=" atoms") as pbar:
+            futures = []
+            for gpu_id in gpus_id:
+                start_idx = gpu_id * batch_size
+                end_idx = (gpu_id + 1) * batch_size if gpu_id < n_gpus - 1 else catoms.shape[0]
+
+                future = cp.cuda.stream.Stream()
+                with future:
+                    futures.append(process_gpu(gpu_id, start_idx, end_idx, pbar))
+
+            cp.cuda.Stream.null.synchronize()
+
+            for future in futures:
+                gmep += future
+
         return gmep
