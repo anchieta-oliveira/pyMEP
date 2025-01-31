@@ -14,7 +14,7 @@ class MEP:
         pass
 
     
-    def calculate(self, pdb:PDB, aux:AUX=AUX(), orca_out:OrcaOut=OrcaOut(), res:float=0.5, gpu:bool=False, charges:np.array=np.array([]), FF:str="", form:str="cube", margim:float=0.4, cutoff: float = 15):
+    def calculate(self, pdb:PDB, aux:AUX=AUX(), orca_out:OrcaOut=OrcaOut(), res:float=0.5, gpu:bool=False, charges:np.array=np.array([]), FF:str="", form:str="cube", margim:float=0.3, cutoff: float = 15):
         if gpu:
             import cupy as cp
             
@@ -76,7 +76,7 @@ class MEP:
         coords_atoms = coords_atoms[mask]
         zatoms = zatoms[mask]
 
-        gmep = fun(catoms=coords_atoms, zatoms=zatoms, x=x, y=y, z=z, xn=d.xn, yn=d.yn, zn=d.zn)
+        gmep = fun(catoms=coords_atoms, zatoms=zatoms, x=x, y=y, z=z, xn=d.xn, yn=d.yn, zn=d.zn, cutoff=cutoff)
 
         if gpu:
             gmep = cp.asnumpy(gmep)
@@ -101,26 +101,28 @@ class MEP:
 
     @staticmethod
     @numba.njit(parallel=True, cache=True, fastmath=True)
-    def comput_mep(catoms: np.array, zatoms: np.array, x: np.array, y: np.array, z: np.array, xn: int, yn: int, zn: int) -> np.array:
+    def comput_mep(catoms: np.array, zatoms: np.array, x: np.array, y: np.array, z: np.array, xn: int, yn: int, zn: int,  cutoff=20) -> np.array:
         grid = np.stack((x, y, z), axis=-1)
         gmep = np.zeros((xn, yn, zn),  dtype=np.float32)
         
         for i in numba.prange(catoms.shape[0]):
             r = np.sqrt(np.sum((grid - catoms[i]) ** 2, axis=-1))
-            r[r == 0] = np.inf
-            contribution = zatoms[i] / r
+            valid_mask = (r < cutoff) & (r > 0)
+            contribution = np.zeros_like(r)
+            contribution[valid_mask] = zatoms[i] / r[valid_mask]
             gmep += contribution.reshape((xn, yn, zn))
         return gmep
 
     @staticmethod    
-    def comput_mep_gpu(catoms, zatoms, x, y, z, xn:int, yn:int, zn:int):
+    def comput_mep_gpu(catoms, zatoms, x, y, z, xn:int, yn:int, zn:int, cutoff=20):
         import cupy as cp
         grid = cp.stack((x, y, z), axis=-1) 
         gmep = cp.zeros((xn, yn, zn), dtype=cp.float32)  
 
-        for i in tqdm(range(catoms.shape[0]), desc="Processando átomos", unit="átomo"):
+        for i in tqdm(range(catoms.shape[0]), desc="Processando", unit="at "):
             r = cp.sqrt(cp.sum((grid - catoms[i]) ** 2, axis=-1))
-            r = cp.where(r == 0, cp.inf, r)
-            contribution = zatoms[i]/r
+            valid_mask = (r < cutoff) & (r > 0)
+            contribution = cp.zeros_like(r)
+            contribution[valid_mask] = zatoms[i] / r[valid_mask]
             gmep += contribution.reshape((xn, yn, zn))
         return gmep
