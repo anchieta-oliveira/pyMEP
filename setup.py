@@ -7,7 +7,7 @@ def readme():
 setup(
     name="pymep",
     version="0.0.1",
-    description="LabMonitor, a Python application designed to simplify the management of computing resources in decentralized networks of Linux machines.",
+    description="The pyMEP (Python Molecular Electrostatic Potential) is a Python library designed for the calculation and visualization of Molecular Electrostatic Potentials (MEP).",
     long_description=readme(),
     long_description_content_type="text/markdown",
     author_email="anchieta.oliveira@biof.ufrj.br",
@@ -15,10 +15,11 @@ setup(
     license="MIT",
     packages=find_packages(),
     install_requires=[
-        "numpy>=1.19.2",
-        "streamlit>=1.41.1",
         "sphinx>=8.1.3",
-        "plotly>=5.24.1",
+        "numba>=0.60.0",
+        "numpy>=2.0.2",
+        "scipy>=1.15.1",
+        "cupy>=13.3.0",
     ],
     classifiers=[
         "Intended Audience :: Developers",
