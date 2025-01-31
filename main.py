@@ -63,6 +63,11 @@ parser.add_argument('-gpu', '--gpu',
     default=False
 )
 
+parser.add_argument('-gpu_id', '--gpu_id',
+    help='',
+    default="1"
+)
+
 parser.add_argument('-o', '--output',
     help='Path to the output file or directory where results will be saved.',
     default="mep.cube"
@@ -98,6 +103,7 @@ def is_out() -> str:
     return args.output.split(".")[-1]
 
 
+gpu_id = args.gpu_id.split(","); gpu_id = list(map(lambda x: int(x), gpu_id))
 
 mep = MEP()
 if args.pdb_file != "":
@@ -117,7 +123,8 @@ if args.force_field:
                         gpu=args.gpu,
                         cutoff=float(args.cutoff), 
                         res=float(args.grid_spacing),
-                        margim=float(args.margin)
+                        margim=float(args.margin),
+                        gpus_id=gpu_id
                         )
     
     vol.write(args.output)
@@ -132,7 +139,8 @@ elif args.mopac_file:
                         gpu=args.gpu,
                         cutoff=float(args.cutoff),
                         res=float(args.grid_spacing),
-                        margim=float(args.margin)                   
+                        margim=float(args.margin), 
+                        gpus_id=gpu_id              
                         )
     
     vol.write(args.output)
@@ -147,7 +155,8 @@ elif args.orca_file:
                         gpu=args.gpu,
                         cutoff=float(args.cutoff),
                         res=float(args.grid_spacing),
-                        margim=float(args.margin)                   
+                        margim=float(args.margin),     
+                        gpus_id=gpu_id              
                         )
     
     vol.write(args.output)
@@ -161,7 +170,8 @@ elif args.psf_file:
                         gpu=args.gpu,
                         cutoff=float(args.cutoff),
                         res=float(args.grid_spacing),
-                        margim=float(args.margin)                   
+                        margim=float(args.margin),   
+                        gpus_id=gpu_id                
                         )
     
     vol.write(args.output)
@@ -177,7 +187,8 @@ elif args.charge_file:
                         gpu=args.gpu,
                         cutoff=float(args.cutoff),
                         res=float(args.grid_spacing),
-                        margim=float(args.margin)                    
+                        margim=float(args.margin),
+                        gpus_id=gpu_id                
                         )
     
     vol.write(args.output)
@@ -193,7 +204,8 @@ elif args.xtb_file_charge:
                         gpu=args.gpu,
                         cutoff=float(args.cutoff),
                         res=float(args.grid_spacing),
-                        margim=float(args.margin)                    
+                        margim=float(args.margin),   
+                        gpus_id=gpu_id                 
                         )
     
     vol.write(args.output)
