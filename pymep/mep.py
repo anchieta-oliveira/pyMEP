@@ -18,8 +18,6 @@ class MEP:
         if gpu:
             import cupy as cp
             
-        #matrix_dist = pdb.get_distance_matrix()
-        #dist_max = matrix_dist.max()
         coords_atoms = pdb.coordinates
 
         x_min, y_min, z_min = coords_atoms.min(axis=0)
@@ -119,7 +117,7 @@ class MEP:
         grid = cp.stack((x, y, z), axis=-1) 
         gmep = cp.zeros((xn, yn, zn), dtype=cp.float32)  
 
-        for i in tqdm(range(catoms.shape[0]), desc="Processando", unit=" atoms"):
+        for i in tqdm(range(catoms.shape[0]), desc="Processing MEP...", unit=" atoms"):
             r = cp.sqrt(cp.sum((grid - catoms[i]) ** 2, axis=-1))
             valid_mask = (r < cutoff) & (r > 0)
             contribution = cp.zeros_like(r)
