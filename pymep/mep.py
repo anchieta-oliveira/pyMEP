@@ -52,7 +52,7 @@ class MEP:
             
             for i, at in enumerate(pdb.atoms):
                 zatoms[i] = ff.get_atom_charge(at.resname, at.name)
-            print(zatoms)
+
             zatoms = np.nan_to_num(zatoms, nan=.0)
         elif charges.size > 0:
             zatoms = charges
