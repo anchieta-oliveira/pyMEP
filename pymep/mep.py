@@ -26,8 +26,8 @@ class MEP:
 
         dist_max = np.linalg.norm([x_max - x_min, y_max - y_min, z_max - z_min])
 
-        xorg, yorg, zorg = coords_atoms[:, 0].min() - (dist_max * margim), coords_atoms[:, 1].min() - (dist_max * margim), coords_atoms[:, 2].min()-(dist_max * margim)
-        xmax, ymax, zmax = coords_atoms[:, 0].max() + (dist_max * margim), coords_atoms[:, 1].max() + (dist_max * margim), coords_atoms[:, 2].max()+ (dist_max * margim)
+        xorg, yorg, zorg = coords_atoms[:, 0].min() - (dist_max * margim), coords_atoms[:, 1].min() - (dist_max * margim), coords_atoms[:, 2].min() - (dist_max * margim)
+        xmax, ymax, zmax = coords_atoms[:, 0].max() + (dist_max * margim), coords_atoms[:, 1].max() + (dist_max * margim), coords_atoms[:, 2].max() + (dist_max * margim)
 
         xn = int((xmax - xorg) / res) + 1
         yn = int((ymax - yorg) / res) + 1
@@ -86,7 +86,7 @@ class MEP:
                 )
             c.natoms = len(pdb.atoms)
             c.header = "MEP\n"
-            
+
             for at in pdb.atoms:
                 at.atomic_number
                 at.coordinates.convert_to(unit="bohr")
@@ -116,7 +116,7 @@ class MEP:
         grid = cp.stack((x, y, z), axis=-1) 
         gmep = cp.zeros((xn, yn, zn), dtype=cp.float32)  
 
-        for i in tqdm(range(catoms.shape[0]), desc="Processing MEP...", unit=" atoms"):
+        for i in tqdm(range(catoms.shape[0]), desc="Processing MEP", unit=" atoms"):
             r = cp.sqrt(cp.sum((grid - catoms[i]) ** 2, axis=-1))
             valid_mask = (r < cutoff) & (r > 0)
             contribution = cp.zeros_like(r)
@@ -163,7 +163,7 @@ class MEP:
             
         
         futures = []
-        with tqdm(total=catoms.shape[0], desc="Processing MEP...", unit=" atoms") as pbar:
+        with tqdm(total=catoms.shape[0], desc="Processing MEP", unit=" atoms") as pbar:
             with ThreadPoolExecutor(max_workers=n_gpus) as executor:
                 for gpu_id in gpus_id:
                     start_idx = gpu_id * batch_size
