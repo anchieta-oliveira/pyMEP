@@ -8,6 +8,7 @@ from pymep.MOL.PDB import PDB
 from pymep.VOL.cube import Cube
 from pymep.QM.orca_out import OrcaOut
 from pymep.FF.forceField import ForceField
+from concurrent.futures import ThreadPoolExecutor
 
 class MEP:
     def __init__(self) -> None:
@@ -31,6 +32,7 @@ class MEP:
         xn = int((xmax - xorg) / res) + 1
         yn = int((ymax - yorg) / res) + 1
         zn = int((zmax - zorg) / res) + 1
+
         d = DX()
         d.make(xdel=res , ydel=res , zdel=res,
                xn=xn, yn=yn, zn=zn,
@@ -45,6 +47,7 @@ class MEP:
 
         elif len(orca_out.mulliken_atomic_charges) > 0:
             zatoms = orca_out.mulliken_atomic_charges
+
         elif FF == "charmm":
             zatoms = np.zeros([len(pdb.atoms)],dtype=np.float32)
             dir_app = os.path.dirname(os.path.realpath(__file__))
@@ -54,16 +57,9 @@ class MEP:
                 zatoms[i] = ff.get_atom_charge(at.resname, at.name)
 
             zatoms = np.nan_to_num(zatoms, nan=.0)
+
         elif charges.size > 0:
             zatoms = charges
-
-        if gpu:
-            import cupy as cp
-            x = cp.asarray(x, dtype=cp.float32)
-            y = cp.asarray(y, dtype=cp.float32)
-            z = cp.asarray(z, dtype=cp.float32)
-            coords_atoms = cp.asarray(coords_atoms, dtype=cp.float32)
-            zatoms = cp.asarray(zatoms, dtype=cp.float32)
 
         if gpu:
             fun = self.comput_mep_multi_gpu
@@ -78,6 +74,7 @@ class MEP:
 
         if gpu:
             gmep = cp.asnumpy(gmep)
+
         d.values = gmep.flatten()
 
         if form == "cube":
@@ -89,12 +86,14 @@ class MEP:
                 )
             c.natoms = len(pdb.atoms)
             c.header = "MEP\n"
+            
             for at in pdb.atoms:
                 at.atomic_number
                 at.coordinates.convert_to(unit="bohr")
             c.atoms = pdb.atoms
             c.values = d.values
             return c
+        
         return d
 
     @staticmethod
@@ -124,49 +123,54 @@ class MEP:
             contribution[valid_mask] = zatoms[i] / r[valid_mask]
             gmep += contribution.reshape((xn, yn, zn))
         return gmep
-
+    
     @staticmethod
-    def comput_mep_multi_gpu(catoms, zatoms, x, y, z, xn:int, yn:int, zn:int, cutoff=20, gpus_id:list=[]):
+    def comput_mep_multi_gpu(catoms: np.array, zatoms: np.array, x: np.array, y: np.array, z: np.array, xn: int, yn: int, zn: int, cutoff: float = 20, gpus_id: list = []):
         import cupy as cp
+
         n_gpus = len(gpus_id)
 
-        if n_gpus < 0:
+        if n_gpus == 0:
             n_gpus = cp.cuda.runtime.getDeviceCount()
             gpus_id = list(range(n_gpus))
-        
-        grid = cp.stack((x, y, z), axis=-1)
-        gmep = cp.zeros((xn, yn, zn), dtype=cp.float32)
 
-        batch_size = catoms.shape[0] // n_gpus 
+        gmep = np.zeros((xn, yn, zn), dtype=cp.float32)
 
-        def process_gpu(gpu_id, start_idx, end_idx, progress_bar):
-            cp.cuda.Device(gpu_id).use()
-            local_gmep = cp.zeros((xn, yn, zn), dtype=cp.float32)
+        batch_size = catoms.shape[0] // n_gpus
 
-            for i in range(start_idx, end_idx):
-                r = cp.sqrt(cp.sum((grid - catoms[i]) ** 2, axis=-1))
-                valid_mask = (r < cutoff) & (r > 0)
-                contribution = cp.zeros_like(r)
-                contribution[valid_mask] = zatoms[i] / r[valid_mask]
-                local_gmep += contribution.reshape((xn, yn, zn))
+        def process_gpu(gpu_id, start_idx, end_idx, progress_bar, x, y, z, catoms, zatoms, cutoff):
+            with cp.cuda.Device(gpu_id):
+                local_gmep = cp.zeros((xn, yn, zn), dtype=cp.float32)
+                x_i = cp.asarray(x, dtype=cp.float32)
+                y_i = cp.asarray(y, dtype=cp.float32)
+                z_i = cp.asarray(z, dtype=cp.float32)
                 
-                progress_bar.update(1)
+                grid = cp.stack((x_i, y_i, z_i), axis=-1)
+
+                catoms_i = cp.asarray(catoms, dtype=cp.float32)
+                zatoms_i = cp.asarray(zatoms, dtype=cp.float32)
+
+                for i in range(start_idx, end_idx):
+                    r = cp.sqrt(cp.sum((grid - catoms_i[i]) ** 2, axis=-1))
+                    valid_mask = (r < cutoff) & (r > 0)
+                    contribution = cp.zeros_like(r)
+                    contribution[valid_mask] = zatoms_i[i] / r[valid_mask]
+                    local_gmep += contribution.reshape((xn, yn, zn))
+
+                    progress_bar.update(1)
+
+                return local_gmep
             
-            return local_gmep
-
+        
+        futures = []
         with tqdm(total=catoms.shape[0], desc="Processing MEP...", unit=" atoms") as pbar:
-            futures = []
-            for gpu_id in gpus_id:
-                start_idx = gpu_id * batch_size
-                end_idx = (gpu_id + 1) * batch_size if gpu_id < n_gpus - 1 else catoms.shape[0]
+            with ThreadPoolExecutor(max_workers=n_gpus) as executor:
+                for gpu_id in gpus_id:
+                    start_idx = gpu_id * batch_size
+                    end_idx = (gpu_id + 1) * batch_size if gpu_id < n_gpus - 1 else catoms.shape[0]
+                    futures.append(executor.submit(process_gpu, gpu_id, start_idx, end_idx, pbar, x, y, z, catoms, zatoms, cutoff))
 
-                future = cp.cuda.stream.Stream()
-                with future:
-                    futures.append(process_gpu(gpu_id, start_idx, end_idx, pbar))
-
-            cp.cuda.Stream.null.synchronize()
-
-            for future in futures:
-                gmep += future
+                for future in futures:
+                    gmep += future.result().get()
 
         return gmep
