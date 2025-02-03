@@ -54,18 +54,18 @@ parser.add_argument('-psf', '--psf_file',
 )
 
 parser.add_argument('-chg_file', '--charge_file',
-    help=''
+    help='Path to the file containing charge information.'
 )
 
 parser.add_argument('-gpu', '--gpu',
-    help='',
+    help='Enable GPU acceleration if available.',
     action='store_true',
     default=False
 )
 
 parser.add_argument('-gpu_id', '--gpu_id',
-    help='',
-    default="1"
+    help='Specify the GPU ID to use (default: all gpus).',
+    default=[]
 )
 
 parser.add_argument('-o', '--output',
@@ -79,13 +79,13 @@ parser.add_argument('-cutoff', '--cutoff',
 )
 
 parser.add_argument('-gs', '--grid_spacing',
-    help='Path to the output file or directory where results will be saved.',
+    help='Grid spacing value to be used in calculations (default: 1).',
     default=1,
 )
 
 parser.add_argument('-m', '--margin',
-    help='Path to the output file or directory where results will be saved.',
-    default=0.4,
+    help='Margin value to be used in calculations (default: 0.3).',
+    default=0.3,
 )
 
 parser.add_argument('-pdb', '--pdb_file',
@@ -93,7 +93,7 @@ parser.add_argument('-pdb', '--pdb_file',
 )
 
 parser.add_argument('-xyz', '--xyz_file',
-    help='PDB file.',
+    help='XYZ file.',
 )
 
 # Execute the parse_args() method
