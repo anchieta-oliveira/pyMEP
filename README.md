@@ -3,7 +3,7 @@ The pyMEP (Python Molecular Electrostatic Potential) is a Python library designe
 
 
 ![Figure 1](https://github.com/anchieta-oliveira/pyMEP/blob/main/gallery/fig_8Y3C.png)
-Figure 1: Molecular Electrostatic Potential (MEP) map of di-nucleosome (closed form) protein alone and DNA protein (PDB ID: 8Y3C). You can see the electrostatic complementarity between the positive charges of the protein (blue) and the negative charges of the RNA (red).  
+Figure 1: Molecular Electrostatic Potential (MEP) map of di-nucleosome (closed form) protein alone (20,416 atoms and 10,289,600 grid points) and complex DNA protein (36,273 atoms and 18,298,710 grid points) (PDB ID: 8Y3C). You can see the electrostatic complementarity between the positive charges of the protein (blue) and the negative charges of the RNA (red).  
 
 
 ## Prerequisites
@@ -84,11 +84,11 @@ Arguments:
 
 
 ## Benchmark
-![Figura 2](https://github.com/anchieta-oliveira/pyMEP/blob/main/benchmark/2luf_cpu_gpu.png)
+![Figura 2](https://github.com/anchieta-oliveira/pyMEP/blob/main/benchmark/1o0h_cpu_gpu.png)
 Figura 2: 
 
 ![Figure X](https://github.com/anchieta-oliveira/pyMEP/blob/main/gallery/fig_1PGL.png)
-Figure 1: Molecular Electrostatic Potential (MEP) map of Bean Pod Mottle Virus(BPMV) (PDB ID: 1PGL). pyMEP can handle large systems in a timely manner; the PDB 1PGL contains 525600 atoms, a grid with 16,836,644 points.
+Figure 1: Molecular Electrostatic Potential (MEP) map of Bean Pod Mottle Virus (BPMV) (PDB ID: 1PGL). pyMEP can handle large systems in a timely manner, using multiple GPUs; PDB 1PGL contains 525,600 atoms, a grid with 16,836,644 points.
 
 ### Run the benchmark with your resources:
 Activate the pyMEP dedicated environment:
