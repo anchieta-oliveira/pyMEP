@@ -65,7 +65,7 @@ parser.add_argument('-gpu', '--gpu',
 
 parser.add_argument('-gpu_id', '--gpu_id',
     help='Specify the GPU ID to use (default: all gpus).',
-    default=[]
+    default="0"
 )
 
 parser.add_argument('-o', '--output',
