@@ -85,7 +85,7 @@ Arguments:
 
 ## Benchmark
 ![Figura 2](https://github.com/anchieta-oliveira/pyMEP/blob/main/benchmark/2luf_cpu_gpu.png)
-Figura 2: 
+Figura 2: Benchmark using TRA-cage (PDB ID: 2LUF) varying grid space, resulting in a greater number of points on the grid. We used a computer with an i9-7900X, 20 threads (3.30 GHz) 32 GB RAM and NVIDIA GeForce GTX 1080 Ti.
 
 ![Figure X](https://github.com/anchieta-oliveira/pyMEP/blob/main/gallery/fig_1PGL.png)
 Figure 1: Molecular Electrostatic Potential (MEP) map of Bean Pod Mottle Virus (BPMV) (PDB ID: 1PGL). pyMEP can handle large systems in a timely manner, using multiple GPUs; PDB 1PGL contains 525,600 atoms, a grid with 16,836,644 points.
