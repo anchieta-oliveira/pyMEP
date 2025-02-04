@@ -84,7 +84,7 @@ Arguments:
 
 
 ## Benchmark
-![Figura 2](https://github.com/anchieta-oliveira/pyMEP/blob/main/benchmark/1o0h_cpu_gpu.png)
+![Figura 2](https://github.com/anchieta-oliveira/pyMEP/blob/main/benchmark/2luf_cpu_gpu.png)
 Figura 2: 
 
 ![Figure X](https://github.com/anchieta-oliveira/pyMEP/blob/main/gallery/fig_1PGL.png)
