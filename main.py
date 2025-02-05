@@ -68,6 +68,11 @@ parser.add_argument('-gpu_id', '--gpu_id',
     default="0"
 )
 
+parser.add_argument('-u', '--unit',
+    help='Unit output.',
+    default=""
+)
+
 parser.add_argument('-o', '--output',
     help='Path to the output file or directory where results will be saved.',
     default="mep.cube"
@@ -121,7 +126,8 @@ if args.force_field:
                         FF=args.force_field, 
                         form=is_out(),
                         gpu=args.gpu,
-                        cutoff=float(args.cutoff), 
+                        cutoff=float(args.cutoff),
+                        unit=args.unit,
                         res=float(args.grid_spacing),
                         margim=float(args.margin),
                         gpus_id=gpu_id
@@ -138,6 +144,7 @@ elif args.mopac_file:
                         form=is_out(), 
                         gpu=args.gpu,
                         cutoff=float(args.cutoff),
+                        unit=args.unit,
                         res=float(args.grid_spacing),
                         margim=float(args.margin), 
                         gpus_id=gpu_id              
@@ -154,6 +161,7 @@ elif args.orca_file:
                         form=is_out(), 
                         gpu=args.gpu,
                         cutoff=float(args.cutoff),
+                        unit=args.unit,
                         res=float(args.grid_spacing),
                         margim=float(args.margin),     
                         gpus_id=gpu_id              
@@ -169,6 +177,7 @@ elif args.psf_file:
                         form=is_out(), 
                         gpu=args.gpu,
                         cutoff=float(args.cutoff),
+                        unit=args.unit,
                         res=float(args.grid_spacing),
                         margim=float(args.margin),   
                         gpus_id=gpu_id                
@@ -186,6 +195,7 @@ elif args.charge_file:
                         form=is_out(), 
                         gpu=args.gpu,
                         cutoff=float(args.cutoff),
+                        unit=args.unit,
                         res=float(args.grid_spacing),
                         margim=float(args.margin),
                         gpus_id=gpu_id                
@@ -203,6 +213,7 @@ elif args.xtb_file_charge:
                         form=is_out(), 
                         gpu=args.gpu,
                         cutoff=float(args.cutoff),
+                        unit=args.unit,
                         res=float(args.grid_spacing),
                         margim=float(args.margin),   
                         gpus_id=gpu_id                 

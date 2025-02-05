@@ -12,10 +12,20 @@ from concurrent.futures import ThreadPoolExecutor
 
 class MEP:
     def __init__(self) -> None:
-        pass
+        self.vol = None
+        
 
+    def convert_to_kcal_mol(self):
+        self.convert_to_ev()
+        self.vol.values *= 23.0605
+
+    def convert_to_ev(self):
+        self.vol.values *= 14.3996
+
+    def not_convert(self):
+        pass
     
-    def calculate(self, pdb:PDB, aux:AUX=AUX(), orca_out:OrcaOut=OrcaOut(), res:float=0.5, gpu:bool=False, charges:np.array=np.array([]), FF:str="", form:str="cube", margim:float=0.3, cutoff: float = 15, gpus_id:list=[]):
+    def calculate(self, pdb:PDB, aux:AUX=AUX(), orca_out:OrcaOut=OrcaOut(), res:float=0.5, gpu:bool=False, charges:np.array=np.array([]), FF:str="", form:str="cube", margim:float=0.3, cutoff: float = 15, gpus_id:list=[], unit:str=""):
         if gpu:
             import cupy as cp
             
@@ -92,9 +102,14 @@ class MEP:
                 at.coordinates.convert_to(unit="bohr")
             c.atoms = pdb.atoms
             c.values = d.values
-            return c
+            d = c 
         
-        return d
+        self.vol = d
+
+        fun_convert = {"": self.not_convert, "kcal/mol": self.convert_to_kcal_mol}
+        fun_convert[unit]()
+
+        return self.vol
 
     @staticmethod
     @numba.njit(parallel=True, cache=True, fastmath=True)
