@@ -1,5 +1,5 @@
 # pyMEP
-The pyMEP (Python Molecular Electrostatic Potential) is a Python library designed for the calculation and visualization of Molecular Electrostatic Potentials (MEP).
+The pyMEP (Python Molecular Electrostatic Potential) is a Python library designed for the calculation and visualization of Molecular Electrostatic Potentials (MEP), which can be accelerated by GPU.
 
 
 ![Figure 1](https://github.com/anchieta-oliveira/pyMEP/blob/main/gallery/fig_8Y3C.png)
